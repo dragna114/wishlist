@@ -67,6 +67,9 @@ button{font:inherit;cursor:pointer;border:0;color:inherit;border-radius:0}
 .tools{margin-top:2.5rem;display:flex;gap:.6rem;flex-wrap:wrap}
 .tools button{background:transparent;border:2px solid var(--line);padding:.4rem 1rem;color:var(--mut);font-size:.88rem}
 .tools button:hover{color:var(--tx);border-color:var(--tx)}
+.view form,.view .acts,.view #exp,.view #imp{display:none}
+.chk:disabled{cursor:default;border-color:var(--line)}.done .chk:disabled{border-color:var(--ok)}
+#st{color:var(--mut);font-size:.88rem;align-self:center}#st.err{color:#ff6a6a}
 :focus-visible{outline:3px solid var(--or);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -106,14 +109,66 @@ button{font:inherit;cursor:pointer;border:0;color:inherit;border-radius:0}
     <button id="exp">Сохранить копию</button>
     <button id="imp">Загрузить копию</button>
     <input id="file" type="file" accept="application/json" hidden>
+    <button id="login">Вход владельца</button><span id="st"></span>
   </div>
 </main>
 
 <script>
 const KEY='wishlist.v1';
-let items=[],filter='all';const editing=new Set();
-try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
+let items=[],filter='all',sha=null,ready=false,timer,chain=Promise.resolve();const editing=new Set();
+const LOCAL=location.protocol==='file:';
+let token=localStorage.getItem('wl.token')||'';
+const canEdit=()=>LOCAL||!!token;
+function repo(){
+  let r=localStorage.getItem('wl.repo');
+  if(!r&&/\.github\.io$/.test(location.hostname)){
+    const o=location.hostname.split('.')[0],p=location.pathname.split('/')[1];
+    r=o+'/'+(p&&p!=='index.html'?p:o+'.github.io');
+  }
+  return r;
+}
+const api=()=>`https://api.github.com/repos/${repo()}/contents/data.json`;
+const hdr=()=>({Authorization:'Bearer '+token,Accept:'application/vnd.github+json'});
+const b64=s=>btoa(unescape(encodeURIComponent(s)));
+const unb64=s=>decodeURIComponent(escape(atob(s.replace(/\s/g,''))));
+function status(t,err){const el=$('#st');el.textContent=t;el.className=err?'err':''}
+
+async function load(){
+  try{
+    if(LOCAL){items=JSON.parse(localStorage.getItem(KEY))||[];ready=true}
+    else if(token){
+      const r=await fetch(api()+'?t='+Date.now(),{headers:hdr()});
+      if(r.status===404){items=[];sha=null}
+      else if(r.ok){const j=await r.json();sha=j.sha;items=JSON.parse(unb64(j.content))}
+      else throw new Error(r.status);
+      ready=true;
+    }else{
+      const r=await fetch('data.json?t='+Date.now());
+      items=r.ok?await r.json():[];
+    }
+  }catch(e){status('Не удалось загрузить данные ('+e.message+'). Проверь токен и репозиторий.',1)}
+  render();
+}
+function save(){
+  if(LOCAL){try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}return}
+  if(!token||!ready)return;
+  status('Сохраняю…');clearTimeout(timer);
+  timer=setTimeout(()=>{chain=chain.then(()=>push())},600);
+}
+async function push(retry){
+  try{
+    const body={message:'Обновление списка',content:b64(JSON.stringify(items,null,2))};
+    if(sha)body.sha=sha;
+    const r=await fetch(api(),{method:'PUT',headers:{...hdr(),'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if((r.status===409||r.status===422)&&!retry){
+      const g=await fetch(api()+'?t='+Date.now(),{headers:hdr()});
+      sha=g.ok?(await g.json()).sha:null;
+      return push(true);
+    }
+    if(!r.ok)throw new Error(r.status);
+    sha=(await r.json()).content.sha;status('Сохранено в GitHub');
+  }catch(e){status('Ошибка сохранения ('+e.message+'). Проверь токен.',1)}
+}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fixUrl=u=>{u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;try{return new URL(u).href}catch(e){return''}};
@@ -128,13 +183,13 @@ function card(i){
     <textarea class="e-n" placeholder="Заметка">${esc(i.note)}</textarea>
     <button class="add" data-a="save">Сохранить</button></div></article>`;
   return `<article class="item ${i.done?'done':''}" data-id="${i.id}">
-    <button class="chk" data-a="toggle" aria-label="${i.done?'Вернуть в ожидание':'Отметить выполненным'}">${tick}</button>
+    <button class="chk" data-a="toggle" ${canEdit()?'':'disabled'} aria-label="${i.done?'Вернуть в ожидание':'Отметить выполненным'}">${tick}</button>
     <div>
       <div class="pos">Поз. ${n}</div>
       <div class="t">${esc(i.title)}</div>
       ${i.link?`<a class="link" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">${esc(host(i.link))} →</a>`:''}
       ${i.note?`<p class="note">${esc(i.note)}</p>`:''}
-      ${i.done?`<label class="by">Подарил(а): <input class="by-i" value="${esc(i.by)}" placeholder="Имя" maxlength="60"></label>`:''}
+      ${i.done?(canEdit()?`<label class="by">Подарил(а): <input class="by-i" value="${esc(i.by)}" placeholder="Имя" maxlength="60"></label>`:`<div class="by">Подарил(а): ${esc(i.by||'—')}</div>`):''}
     </div>
     <div class="acts">
       <button class="ico" data-a="edit" aria-label="Редактировать">✎</button>
@@ -198,7 +253,16 @@ $('#file').onchange=async e=>{
   }catch(err){alert('Не удалось прочитать файл')}
   e.target.value='';
 };
-render();
+$('#login').textContent=token?'Выйти':'Вход владельца';
+if(LOCAL)$('#login').hidden=true;
+$('#login').onclick=()=>{
+  if(token){if(confirm('Выйти из режима владельца?')){localStorage.removeItem('wl.token');location.reload()}return}
+  if(!repo()){const r=prompt('Репозиторий в формате логин/название');if(!r)return;localStorage.setItem('wl.repo',r.trim())}
+  const t=prompt('Вставь токен GitHub (доступ только к этому репозиторию)');
+  if(t){localStorage.setItem('wl.token',t.trim());location.reload()}
+};
+document.body.classList.toggle('view',!canEdit());
+load();
 </script>
 </body>
 </html>
