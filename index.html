@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Виш-лист</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23ff6a13%22/><text x=%2250%22 y=%2275%22 font-size=%2270%22 font-family=%22Arial%22 font-weight=%22900%22 text-anchor=%22middle%22 fill=%22%2316181a%22>В</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#16181a;--panel:#1f2326;--line:#3a4147;--tx:#e8e6e1;--mut:#8b949b;--or:#ff6a13;--ok:#7ccf55;--inp:#111314}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;color:var(--tx);font:16px/1.5 "IBM Plex Sans",system-ui,sans-serif;padding:clamp(1rem,4vw,3rem) 1rem 5rem;
+  background:repeating-linear-gradient(0deg,transparent 0 39px,rgba(255,255,255,.025) 39px 40px),repeating-linear-gradient(90deg,transparent 0 39px,rgba(255,255,255,.025) 39px 40px),var(--bg)}
+main{max-width:760px;margin:0 auto}
+h1{font:700 clamp(3rem,13vw,6rem)/.9 Oswald,Impact,sans-serif;text-transform:uppercase;letter-spacing:.01em;margin:.3em 0 .15em}
+.rule{height:8px;width:120px;background:var(--or);margin-bottom:1rem}
+.sub{color:var(--mut);margin:0 0 1.6rem;max-width:52ch}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border:2px solid var(--line);margin-bottom:.8rem}
+.stat{padding:.8rem 1rem;border-right:2px solid var(--line)}
+.stat:last-child{border:0}
+.stat b{display:block;font:700 2.4rem/1 Oswald,sans-serif}
+.stat span{color:var(--mut);font-size:.85rem}
+.stat.ok b{color:var(--ok)}
+.track{height:16px;border:2px solid var(--line);margin-bottom:2rem;background:var(--inp)}
+#bar{height:100%;width:0;background:repeating-linear-gradient(-45deg,var(--or) 0 10px,#16181a 10px 20px);transition:width .5s}
+form{background:var(--panel);border:2px solid var(--line);border-top:6px solid var(--or);padding:1.1rem;display:grid;gap:.6rem;margin-bottom:2rem}
+h2{font:700 1.3rem/1 Oswald,sans-serif;text-transform:uppercase;letter-spacing:.06em;margin:0 0 .3rem}
+input,textarea{width:100%;font:inherit;color:var(--tx);background:var(--inp);border:2px solid var(--line);border-radius:0;padding:.65rem .8rem;outline:none}
+input::placeholder,textarea::placeholder{color:var(--mut)}
+input:focus,textarea:focus{border-color:var(--or)}
+textarea{resize:vertical;min-height:2.8rem}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+@media(max-width:560px){.row{grid-template-columns:1fr}.stat b{font-size:1.8rem}}
+button{font:inherit;cursor:pointer;border:0;color:inherit;border-radius:0}
+.add{background:var(--or);color:#16181a;font:700 1rem Oswald,sans-serif;text-transform:uppercase;letter-spacing:.08em;padding:.75rem 1.6rem;justify-self:start}
+.add:hover{background:#ff8340}
+.add:active{transform:translateY(2px)}
+.tabs{display:flex;margin-bottom:1rem;border:2px solid var(--line);width:max-content;max-width:100%}
+.tab{background:transparent;color:var(--mut);padding:.45rem 1.1rem;font:500 .95rem Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase;border-right:2px solid var(--line)}
+.tab:last-child{border:0}
+.tab[aria-pressed=true]{background:var(--tx);color:var(--bg)}
+#list{display:grid;gap:.8rem}
+.item{position:relative;overflow:hidden;background:var(--panel);border:2px solid var(--line);border-left:8px solid var(--or);padding:1rem;display:grid;grid-template-columns:auto 1fr auto;gap:1rem;align-items:start}
+.item.done{border-left-color:var(--ok)}
+.chk{width:36px;height:36px;border:2px solid var(--tx);background:var(--inp);display:grid;place-items:center}
+.chk:hover{border-color:var(--or)}
+.chk svg{width:22px;height:22px;stroke:#16181a;stroke-width:4;fill:none;stroke-linecap:square;opacity:0}
+.done .chk{background:var(--ok);border-color:var(--ok)}
+.done .chk svg{opacity:1}
+.pos{font:500 .8rem "IBM Plex Sans",monospace;color:var(--mut);letter-spacing:.08em}
+.t{font:700 1.35rem/1.2 Oswald,sans-serif;letter-spacing:.02em;word-break:break-word}
+.done .t{color:var(--mut);text-decoration:line-through;text-decoration-thickness:2px}
+.link{display:inline-block;margin-top:.4rem;font-size:.88rem;color:var(--or);border:1px solid var(--or);padding:.05rem .6rem;text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.link:hover{background:var(--or);color:#16181a}
+.note{margin:.5rem 0 0;color:var(--mut);white-space:pre-wrap;word-break:break-word;border-left:2px solid var(--line);padding-left:.7rem}
+.by{margin-top:.7rem;display:flex;align-items:center;gap:.6rem;color:var(--ok);font-size:.92rem;flex-wrap:wrap}
+.by input{padding:.35rem .6rem;max-width:230px}
+.acts{display:flex;flex-direction:column}
+.ico{background:transparent;color:var(--mut);width:36px;height:36px;font-size:1.05rem}
+.ico:hover{background:var(--line);color:var(--tx)}
+.stamp{position:absolute;right:3.4rem;bottom:.7rem;transform:rotate(-9deg);border:3px solid var(--ok);color:var(--ok);font:700 1.1rem Oswald,sans-serif;letter-spacing:.14em;padding:.1rem .6rem;opacity:.8;pointer-events:none}
+.edit{grid-column:1/-1;display:grid;gap:.5rem}
+.empty{text-align:center;color:var(--mut);padding:2.5rem 1rem;border:2px dashed var(--line)}
+.tools{margin-top:2.5rem;display:flex;gap:.6rem;flex-wrap:wrap}
+.tools button{background:transparent;border:2px solid var(--line);padding:.4rem 1rem;color:var(--mut);font-size:.88rem}
+.tools button:hover{color:var(--tx);border-color:var(--tx)}
+:focus-visible{outline:3px solid var(--or);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Виш-лист</h1>
+  <div class="rule"></div>
+  <p class="sub">Спецификация желаемого. Добавляй позиции, закрывай галочкой и записывай, кто подарил.</p>
+
+  <div class="stats">
+    <div class="stat"><b id="s-all">0</b><span>Всего позиций</span></div>
+    <div class="stat"><b id="s-todo">0</b><span>В ожидании</span></div>
+    <div class="stat ok"><b id="s-done">0</b><span>Выполнено</span></div>
+  </div>
+  <div class="track"><div id="bar"></div></div>
+
+  <form id="f">
+    <h2>Новая позиция</h2>
+    <input id="title" placeholder="Что хочется" required maxlength="120" autocomplete="off">
+    <div class="row">
+      <input id="link" placeholder="Ссылка на товар" inputmode="url" autocomplete="off">
+      <input id="note" placeholder="Заметка: размер, модель, где взять">
+    </div>
+    <button class="add" type="submit">Добавить</button>
+  </form>
+
+  <div class="tabs" role="group" aria-label="Фильтр">
+    <button class="tab" data-f="all">Все</button>
+    <button class="tab" data-f="todo">Жду</button>
+    <button class="tab" data-f="done">Выполнено</button>
+  </div>
+
+  <section id="list"></section>
+
+  <div class="tools">
+    <button id="exp">Сохранить копию</button>
+    <button id="imp">Загрузить копию</button>
+    <input id="file" type="file" accept="application/json" hidden>
+  </div>
+</main>
+
+<script>
+const KEY='wishlist.v1';
+let items=[],filter='all';const editing=new Set();
+try{items=JSON.parse(localStorage.getItem(KEY))||[]}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){}};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fixUrl=u=>{u=(u||'').trim();if(!u)return'';if(!/^https?:\/\//i.test(u))u='https://'+u;try{return new URL(u).href}catch(e){return''}};
+const host=u=>{try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return u}};
+const tick='<svg viewBox="0 0 24 24"><path d="M4 13l5 5L20 6"/></svg>';
+
+function card(i){
+  const n=String(items.indexOf(i)+1).padStart(2,'0');
+  if(editing.has(i.id)) return `<article class="item" data-id="${i.id}"><div class="edit">
+    <input class="e-t" value="${esc(i.title)}" maxlength="120" placeholder="Название">
+    <input class="e-l" value="${esc(i.link)}" placeholder="Ссылка">
+    <textarea class="e-n" placeholder="Заметка">${esc(i.note)}</textarea>
+    <button class="add" data-a="save">Сохранить</button></div></article>`;
+  return `<article class="item ${i.done?'done':''}" data-id="${i.id}">
+    <button class="chk" data-a="toggle" aria-label="${i.done?'Вернуть в ожидание':'Отметить выполненным'}">${tick}</button>
+    <div>
+      <div class="pos">Поз. ${n}</div>
+      <div class="t">${esc(i.title)}</div>
+      ${i.link?`<a class="link" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">${esc(host(i.link))} →</a>`:''}
+      ${i.note?`<p class="note">${esc(i.note)}</p>`:''}
+      ${i.done?`<label class="by">Подарил(а): <input class="by-i" value="${esc(i.by)}" placeholder="Имя" maxlength="60"></label>`:''}
+    </div>
+    <div class="acts">
+      <button class="ico" data-a="edit" aria-label="Редактировать">✎</button>
+      <button class="ico" data-a="del" aria-label="Удалить">✕</button>
+    </div>
+    ${i.done?'<div class="stamp">Выполнено</div>':''}</article>`;
+}
+
+function render(){
+  const done=items.filter(i=>i.done).length;
+  $('#s-all').textContent=items.length;$('#s-done').textContent=done;$('#s-todo').textContent=items.length-done;
+  $('#bar').style.width=items.length?done/items.length*100+'%':'0';
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-pressed',b.dataset.f===filter));
+  const list=items.filter(i=>filter==='all'||(filter==='done')===i.done);
+  $('#list').innerHTML=list.length?list.map(card).join(''):
+    `<p class="empty">${items.length?'В этой вкладке позиций нет.':'Список пуст. Добавь первую позицию выше.'}</p>`;
+}
+
+$('#f').addEventListener('submit',e=>{
+  e.preventDefault();
+  const title=$('#title').value.trim();if(!title)return;
+  items.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),title,link:fixUrl($('#link').value),note:$('#note').value.trim(),done:false,by:''});
+  e.target.reset();save();render();
+});
+document.querySelector('.tabs').addEventListener('click',e=>{
+  const b=e.target.closest('.tab');if(b){filter=b.dataset.f;render()}
+});
+$('#list').addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const el=b.closest('.item'),it=items.find(x=>x.id===el.dataset.id);if(!it)return;
+  const a=b.dataset.a;
+  if(a==='toggle'){it.done=!it.done;if(!it.done)it.by='';save();render();
+    if(it.done)document.querySelector(`[data-id="${it.id}"] .by-i`)?.focus();}
+  if(a==='del'&&confirm('Удалить эту позицию?')){items=items.filter(x=>x!==it);save();render()}
+  if(a==='edit'){editing.add(it.id);render()}
+  if(a==='save'){
+    it.title=el.querySelector('.e-t').value.trim()||it.title;
+    it.link=fixUrl(el.querySelector('.e-l').value);
+    it.note=el.querySelector('.e-n').value.trim();
+    editing.delete(it.id);save();render();
+  }
+});
+$('#list').addEventListener('input',e=>{
+  if(!e.target.classList.contains('by-i'))return;
+  const it=items.find(x=>x.id===e.target.closest('.item').dataset.id);
+  if(it){it.by=e.target.value;save()}
+});
+$('#exp').onclick=()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(items,null,2)],{type:'application/json'}));
+  a.download='wishlist.json';a.click();URL.revokeObjectURL(a.href);
+};
+$('#imp').onclick=()=>$('#file').click();
+$('#file').onchange=async e=>{
+  try{
+    const d=JSON.parse(await e.target.files[0].text());
+    if(Array.isArray(d)&&confirm('Заменить текущий список загруженным?')){
+      items=d.filter(x=>x&&x.title).map(x=>({id:String(x.id||Math.random().toString(36).slice(2)),title:String(x.title),link:fixUrl(x.link),note:String(x.note||''),done:!!x.done,by:String(x.by||'')}));
+      save();render();
+    }
+  }catch(err){alert('Не удалось прочитать файл')}
+  e.target.value='';
+};
+render();
+</script>
+</body>
+</html>
